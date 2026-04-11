@@ -1,8 +1,10 @@
 import os
 import secrets
+import logging
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from flask import Flask
+from flask import Flask, request, session
 from sqlalchemy import inspect, text
 
 from .models import db
@@ -70,6 +72,63 @@ def ensure_schema_updates() -> None:
                     connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}"))
 
 
+def configure_logging(app: Flask) -> None:
+    log_level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
+    log_level = getattr(logging, log_level_name, logging.INFO)
+    formatter = logging.Formatter(
+        "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+    )
+
+    app.logger.handlers.clear()
+    app.logger.setLevel(log_level)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)
+    console_handler.setFormatter(formatter)
+    app.logger.addHandler(console_handler)
+
+    logs_path = Path(app.instance_path) / "logs"
+    logs_path.mkdir(parents=True, exist_ok=True)
+    file_handler = RotatingFileHandler(
+        logs_path / "app.log",
+        maxBytes=1_048_576,
+        backupCount=5,
+        encoding="utf-8",
+    )
+    file_handler.setLevel(log_level)
+    file_handler.setFormatter(formatter)
+    app.logger.addHandler(file_handler)
+    app.logger.propagate = False
+
+    @app.before_request
+    def log_request_start():
+        app.logger.info(
+            "Request started method=%s path=%s remote_addr=%s client_id=%s stylist_user_id=%s",
+            request.method,
+            request.path,
+            request.headers.get("X-Forwarded-For", request.remote_addr),
+            session.get("client_id", ""),
+            session.get("stylist_user_id", ""),
+        )
+
+    @app.after_request
+    def log_request_end(response):
+        app.logger.info(
+            "Request completed method=%s path=%s status=%s",
+            request.method,
+            request.path,
+            response.status_code,
+        )
+        return response
+
+    def log_exception(sender, exception, **extra):
+        sender.logger.exception("Unhandled application error on path=%s", request.path)
+
+    from flask import got_request_exception
+
+    got_request_exception.connect(log_exception, app)
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
 
@@ -82,6 +141,7 @@ def create_app() -> Flask:
     app.config["UPLOAD_FOLDER"] = str(instance_path / "uploads")
 
     Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
+    configure_logging(app)
 
     db.init_app(app)
 

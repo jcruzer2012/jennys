@@ -917,6 +917,7 @@ def client_register():
         birthdate = parse_date_value(request.form.get("birthdate"))
 
         if not first_name or not last_name or not phone:
+            current_app.logger.warning("Client registration failed missing required fields last_name=%s", last_name)
             flash("First name, last name, and phone number are required.")
             return render_template("client_register.html")
 
@@ -927,6 +928,11 @@ def client_register():
                 existing_client.first_name.strip().lower() == first_name.lower()
                 and normalize_phone_number(existing_client.phone or "") == normalized_phone
             ):
+                current_app.logger.info(
+                    "Client registration duplicate prevented client_id=%s last_name=%s",
+                    existing_client.id,
+                    last_name,
+                )
                 flash("That client account already exists. Please sign in with your last name and phone number.")
                 return redirect(url_for("main.home"))
 
@@ -940,6 +946,7 @@ def client_register():
         )
         db.session.add(client)
         db.session.commit()
+        current_app.logger.info("Client account created client_id=%s name=%s", client.id, client.full_name)
 
         session.pop("stylist_user_id", None)
         session["client_id"] = client.id
@@ -964,11 +971,13 @@ def client_login():
             break
 
     if not client:
+        current_app.logger.warning("Client login failed last_name=%s", last_name)
         flash("We couldn't verify that client login. Please check the last name and phone number.")
         return redirect(url_for("main.home"))
 
     session.pop("stylist_user_id", None)
     session["client_id"] = client.id
+    current_app.logger.info("Client login succeeded client_id=%s", client.id)
     return redirect(url_for("main.create_change_request"))
 
 
@@ -1026,6 +1035,7 @@ def stylist_login():
         user = StylistUser.query.filter_by(username=username).first()
 
         if not user or not user.check_password(password):
+            current_app.logger.warning("Stylist login failed username=%s", username)
             flash("Incorrect username or password.")
             return render_template(
                 "stylist_login.html",
@@ -1034,6 +1044,7 @@ def stylist_login():
 
         session.pop("client_id", None)
         session["stylist_user_id"] = user.id
+        current_app.logger.info("Stylist login succeeded stylist_user_id=%s username=%s", user.id, user.username)
         next_path = request.args.get("next") or request.form.get("next") or url_for("main.dashboard")
         return redirect(next_path)
 
@@ -2103,6 +2114,11 @@ def create_change_request():
     pending_request = get_client_pending_request(g.client.id)
     if request.method == "POST":
         if pending_request:
+            current_app.logger.info(
+                "Client request blocked existing pending request client_id=%s request_id=%s",
+                g.client.id,
+                pending_request.id,
+            )
             flash("You already have a schedule request pending. Please edit that request instead of creating a new one.")
             return redirect(url_for("main.create_change_request"))
 
@@ -2231,6 +2247,12 @@ def create_change_request():
         request_record.services = selected_services
         db.session.add(request_record)
         db.session.commit()
+        current_app.logger.info(
+            "Change request created request_id=%s client_id=%s appointment_id=%s",
+            request_record.id,
+            g.client.id,
+            request_record.appointment_id or "",
+        )
         flash("Schedule request submitted. It is now pending review.")
         return redirect(url_for("main.create_change_request"))
     return render_change_request_template(
@@ -2404,6 +2426,7 @@ def edit_change_request(request_id: int):
         change_request.message = request.form.get("message", "").strip()
         change_request.services = selected_services
         db.session.commit()
+        current_app.logger.info("Change request updated request_id=%s client_id=%s", change_request.id, g.client.id)
         flash("Pending schedule request updated.")
         return redirect(url_for("main.create_change_request"))
 
@@ -2445,8 +2468,21 @@ def handle_change_request(request_id: int, action: str):
                 change_request.appointment.is_override = True
                 change_request.appointment.override_reason = "Approved from client request."
         flash("Change request approved and schedule updated.")
+        current_app.logger.info(
+            "Change request approved request_id=%s client_id=%s appointment_id=%s stylist_user_id=%s",
+            change_request.id,
+            change_request.client_id,
+            change_request.appointment_id or "",
+            getattr(g.stylist_user, "id", ""),
+        )
     elif action == "deny":
         change_request.status = "denied"
         flash("Change request denied.")
+        current_app.logger.info(
+            "Change request denied request_id=%s client_id=%s stylist_user_id=%s",
+            change_request.id,
+            change_request.client_id,
+            getattr(g.stylist_user, "id", ""),
+        )
     db.session.commit()
     return redirect(url_for("main.dashboard"))
