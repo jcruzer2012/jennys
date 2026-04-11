@@ -1743,7 +1743,20 @@ def create_appointment():
     service_options = get_service_options()
     selected_month, month_grid, previous_month, next_month_param = appointment_form_calendar(request.args.get("month"))
     if request.method == "POST":
-        client_id = int(request.form["client_id"])
+        client_id = parse_int(request.form.get("client_id"))
+        if not client_id or not Client.query.get(client_id):
+            flash("Please choose a valid client before saving the appointment.")
+            return render_appointment_form_template(
+                clients=clients,
+                appointment=None,
+                selected_month=selected_month,
+                month_grid=month_grid,
+                previous_month=previous_month,
+                next_month_param=next_month_param,
+                show_series_options=False,
+                service_options=service_options,
+                selected_service_ids=selected_service_ids_from_request(),
+            )
         start_datetime = parse_datetime(request.form["start_datetime"])
         duration_minutes = parse_int(request.form.get("duration_minutes"), default=60)
         selected_service_ids = selected_service_ids_from_request()
@@ -1892,7 +1905,21 @@ def edit_appointment(appointment_id: int):
     )
 
     if request.method == "POST":
-        appointment.client_id = int(request.form["client_id"])
+        client_id = parse_int(request.form.get("client_id"))
+        if not client_id or not Client.query.get(client_id):
+            flash("Please choose a valid client before updating the appointment.")
+            return render_appointment_form_template(
+                clients=clients,
+                appointment=appointment,
+                selected_month=selected_month,
+                month_grid=month_grid,
+                previous_month=previous_month,
+                next_month_param=next_month_param,
+                show_series_options=show_series_options,
+                service_options=service_options,
+                selected_service_ids=selected_service_ids_from_request() or [service.id for service in appointment.services],
+            )
+        appointment.client_id = client_id
         appointment.title = request.form["title"].strip()
         appointment.notes = request.form.get("notes", "").strip()
         new_start = parse_datetime(request.form["start_datetime"])
@@ -2154,7 +2181,8 @@ def create_change_request():
                 form_values=build_change_request_form_values(),
             )
         if appointment_id_value:
-            linked_appointment = Appointment.query.get(int(appointment_id_value))
+            linked_appointment_id = parse_int(appointment_id_value)
+            linked_appointment = Appointment.query.get(linked_appointment_id) if linked_appointment_id else None
             if linked_appointment:
                 if linked_appointment.client_id != g.client.id:
                     flash("Please choose one of your own appointments.")
@@ -2238,7 +2266,7 @@ def create_change_request():
 
         request_record = ChangeRequest(
             client_id=g.client.id,
-            appointment_id=int(appointment_id_value) if appointment_id_value else None,
+            appointment_id=parse_int(appointment_id_value) if appointment_id_value else None,
             promotion=selected_promotion,
             requested_start=requested_start,
             requested_end=requested_end,
@@ -2327,7 +2355,8 @@ def edit_change_request(request_id: int):
                 form_values=build_change_request_form_values(change_request),
             )
         if appointment_id_value:
-            linked_appointment = Appointment.query.get(int(appointment_id_value))
+            linked_appointment_id = parse_int(appointment_id_value)
+            linked_appointment = Appointment.query.get(linked_appointment_id) if linked_appointment_id else None
             if linked_appointment:
                 if linked_appointment.client_id != g.client.id:
                     flash("Please choose one of your own appointments.")
@@ -2419,7 +2448,7 @@ def edit_change_request(request_id: int):
                 form_values=build_change_request_form_values(change_request),
             )
 
-        change_request.appointment_id = int(appointment_id_value) if appointment_id_value else None
+        change_request.appointment_id = parse_int(appointment_id_value) if appointment_id_value else None
         change_request.promotion = selected_promotion
         change_request.requested_start = requested_start
         change_request.requested_end = requested_end

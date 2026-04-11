@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card form-shell">
+    <div class="section-heading standalone">
+        <div>
+            <p class="eyebrow">Oops</p>
+            <h2>{{ error_title }}</h2>
+            <p>{{ error_message }}</p>
+        </div>
+    </div>
+
+    <div class="actions-row">
+        <a class="button" href="{{ action_url }}">{{ action_label }}</a>
+    </div>
+</section>
+{% endblock %}

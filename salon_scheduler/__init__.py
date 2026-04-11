@@ -4,8 +4,10 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from flask import Flask, request, session
+from flask import Flask, flash, redirect, render_template, request, session, url_for
+from werkzeug.exceptions import HTTPException
 from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from .models import db
 
@@ -127,6 +129,73 @@ def configure_logging(app: Flask) -> None:
     from flask import got_request_exception
 
     got_request_exception.connect(log_exception, app)
+
+    def fallback_endpoint() -> str:
+        if session.get("stylist_user_id"):
+            return "main.dashboard"
+        if session.get("client_id"):
+            return "main.create_change_request"
+        return "main.home"
+
+    @app.teardown_request
+    def rollback_failed_requests(error):
+        if error is not None:
+            db.session.rollback()
+
+    @app.errorhandler(404)
+    def handle_not_found(error):
+        return (
+            render_template(
+                "error.html",
+                error_title="Page not found",
+                error_message="That page is not available. Try one of the main navigation links instead.",
+                action_url=url_for(fallback_endpoint()),
+                action_label="Return to the app",
+            ),
+            404,
+        )
+
+    @app.errorhandler(400)
+    @app.errorhandler(413)
+    def handle_bad_request(error):
+        message = "That request could not be completed. Please check your entry and try again."
+        if getattr(error, "code", None) == 413:
+            message = "That upload or request was too large. Please try a smaller file."
+        if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+            flash(message)
+            return redirect(url_for(fallback_endpoint()))
+        return (
+            render_template(
+                "error.html",
+                error_title="Request problem",
+                error_message=message,
+                action_url=url_for(fallback_endpoint()),
+                action_label="Go back",
+            ),
+            getattr(error, "code", 400),
+        )
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(error):
+        if isinstance(error, HTTPException):
+            return error
+        db.session.rollback()
+        if isinstance(error, SQLAlchemyError):
+            app.logger.error("Database error handled gracefully on path=%s", request.path)
+        message = "Something went wrong, and your last action was not completed."
+        if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+            flash(message)
+            return redirect(url_for(fallback_endpoint()))
+        return (
+            render_template(
+                "error.html",
+                error_title="Something went wrong",
+                error_message=message,
+                action_url=url_for(fallback_endpoint()),
+                action_label="Return safely",
+            ),
+            500,
+        )
 
 
 def create_app() -> Flask:

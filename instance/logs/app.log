@@ -6,3 +6,15 @@
 2026-04-10 22:23:50,585 INFO [salon_scheduler] Request completed method=GET path=/requests/new status=200
 2026-04-10 22:23:50,587 INFO [salon_scheduler] Request started method=GET path=/dashboard remote_addr=127.0.0.1 client_id= stylist_user_id=1
 2026-04-10 22:23:50,616 INFO [salon_scheduler] Request completed method=GET path=/dashboard status=200
+2026-04-10 23:22:22,644 INFO [salon_scheduler] Request started method=GET path=/ remote_addr=127.0.0.1 client_id= stylist_user_id=
+2026-04-10 23:22:22,653 INFO [salon_scheduler] Request completed method=GET path=/ status=200
+2026-04-10 23:22:22,653 INFO [salon_scheduler] Request started method=GET path=/not-a-real-page remote_addr=127.0.0.1 client_id= stylist_user_id=
+2026-04-10 23:22:22,655 INFO [salon_scheduler] Request completed method=GET path=/not-a-real-page status=404
+2026-04-10 23:22:22,656 INFO [salon_scheduler] Request started method=POST path=/requests/new remote_addr=127.0.0.1 client_id=1 stylist_user_id=
+2026-04-10 23:22:22,717 INFO [salon_scheduler] Change request created request_id=2 client_id=1 appointment_id=
+2026-04-10 23:22:22,718 INFO [salon_scheduler] Request completed method=POST path=/requests/new status=302
+2026-04-10 23:22:22,720 INFO [salon_scheduler] Request started method=GET path=/dashboard remote_addr=127.0.0.1 client_id= stylist_user_id=1
+2026-04-10 23:22:22,752 INFO [salon_scheduler] Request completed method=GET path=/dashboard status=200
+2026-04-10 23:22:34,307 INFO [salon_scheduler] Request started method=POST path=/requests/new remote_addr=127.0.0.1 client_id=1 stylist_user_id=
+2026-04-10 23:22:34,352 INFO [salon_scheduler] Client request blocked existing pending request client_id=1 request_id=2
+2026-04-10 23:22:34,353 INFO [salon_scheduler] Request completed method=POST path=/requests/new status=302
