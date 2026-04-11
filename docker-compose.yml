@@ -5,7 +5,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:a5s4dg65as4dg654as65d4g6as4dg654as65dg46a5sd4f65}
+      FLASK_SECRET_KEY: "a5s4dg65as4dg654as65d4g6as4dg654as65dg46a5sd4f65"
     volumes:
       - ./instance:/app/instance
     restart: unless-stopped
