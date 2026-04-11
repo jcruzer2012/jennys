@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="form-shell card">
+    <div class="section-heading standalone">
+        <div>
+            <p class="eyebrow">Client</p>
+            <h2>{{ "Edit client" if client else "Add a client" }}</h2>
+        </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="form-grid">
+        <label>
+            First name
+            <input type="text" name="first_name" value="{{ client.first_name if client else '' }}" required>
+        </label>
+        <label>
+            Last name
+            <input type="text" name="last_name" value="{{ client.last_name if client else '' }}" required>
+        </label>
+        <label>
+            Phone
+            <input type="text" name="phone" value="{{ client.phone if client else '' }}">
+        </label>
+        <label>
+            Email
+            <input type="email" name="email" value="{{ client.email if client else '' }}">
+        </label>
+        <label>
+            Birthdate
+            <input type="date" name="birthdate" value="{{ client.birthdate.isoformat() if client and client.birthdate else '' }}">
+        </label>
+        <label class="full">
+            Notes
+            <textarea name="notes" rows="4">{{ client.notes if client else '' }}</textarea>
+        </label>
+        <label>
+            Profile photo
+            <input type="file" name="photo" accept="image/*">
+        </label>
+        <label class="checkbox inline-checkbox">
+            <input type="checkbox" name="is_regular" {% if client and client.is_regular %}checked{% endif %}>
+            <span>Mark as regular client</span>
+        </label>
+        <div class="full actions-row">
+            <button class="button" type="submit">Save client</button>
+            {% if client %}
+                <a class="button danger subtle" href="{{ url_for('main.delete_client', client_id=client.id) }}">Delete client</a>
+            {% endif %}
+        </div>
+    </form>
+</section>
+{% endblock %}

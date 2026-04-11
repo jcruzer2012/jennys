@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Jenny's Barbershop</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <div>
+            <p class="eyebrow">Scheduling</p>
+            <h1><a href="{{ url_for('main.home') }}">Jenny's Barbershop Scheduling</a></h1>
+        </div>
+        <nav>
+            {% if current_stylist %}
+                <button class="nav-button menu-trigger" type="button" data-menu-open aria-expanded="false" aria-controls="stylist-menu">
+                    Menu
+                </button>
+            {% elif current_client %}
+                <a href="{{ url_for('main.create_change_request') }}">Request Appointment Change</a>
+                <form method="post" action="{{ url_for('main.client_logout') }}">
+                    <button class="nav-button" type="submit">Client Sign Out</button>
+                </form>
+            {% endif %}
+        </nav>
+    </header>
+
+    <main class="page-shell {% if current_stylist %}app-layout{% endif %}">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <section class="flash-stack">
+                    {% for message in messages %}
+                        <div class="flash">{{ message }}</div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+
+        <div class="content-column">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    {% if current_stylist %}
+        <div class="menu-overlay" data-menu-overlay hidden></div>
+        <aside class="menu-drawer" id="stylist-menu" data-menu-drawer hidden aria-hidden="true">
+            <section class="card sidebar-card menu-drawer-card">
+                <div class="menu-drawer-header">
+                    <div>
+                        <p class="eyebrow">Navigation</p>
+                        <h2>Menu</h2>
+                    </div>
+                    <button class="nav-button menu-close" type="button" data-menu-close aria-label="Close menu">Close</button>
+                </div>
+
+                <div class="sidebar-group">
+                    <p class="eyebrow">My Profile</p>
+                    <div class="sidebar-links">
+                        <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
+                        <a href="{{ url_for('main.stylist_profile') }}">Profile Settings</a>
+                        <a href="{{ url_for('main.reports') }}">Reports</a>
+                        <a href="{{ url_for('main.schedule') }}">Schedule</a>
+                        <a href="{{ url_for('main.create_appointment') }}">Add Appointment</a>
+                        <a href="{{ url_for('main.manage_unavailability') }}">Time Off</a>
+                    </div>
+                </div>
+
+                <div class="sidebar-group">
+                    <p class="eyebrow">Client Management</p>
+                    <div class="sidebar-links">
+                        <a href="{{ url_for('main.clients') }}">Client Profiles</a>
+                        <a href="{{ url_for('main.services') }}">Services</a>
+                        <a href="{{ url_for('main.promotions') }}">Promotions</a>
+                    </div>
+                </div>
+
+                <div class="sidebar-group">
+                    <p class="eyebrow">Session</p>
+                    <form method="post" action="{{ url_for('main.stylist_logout') }}" class="sidebar-form">
+                        <button class="sidebar-action-button" type="submit">Sign Out</button>
+                    </form>
+                </div>
+            </section>
+        </aside>
+    {% endif %}
+
+    <footer class="site-footer">
+        <p>
+            This site was made by Joshua Staley at
+            <a href="https://simpleschedule.biz" target="_blank" rel="noreferrer">simpleschedule.biz</a>
+        </p>
+    </footer>
+
+    {% if current_stylist %}
+        <script>
+            (() => {
+                const openButton = document.querySelector("[data-menu-open]");
+                const closeButton = document.querySelector("[data-menu-close]");
+                const overlay = document.querySelector("[data-menu-overlay]");
+                const drawer = document.querySelector("[data-menu-drawer]");
+
+                if (!openButton || !closeButton || !overlay || !drawer) {
+                    return;
+                }
+
+                const openMenu = () => {
+                    overlay.hidden = false;
+                    drawer.hidden = false;
+                    requestAnimationFrame(() => {
+                        overlay.classList.add("menu-overlay-visible");
+                        drawer.classList.add("menu-drawer-open");
+                    });
+                    openButton.setAttribute("aria-expanded", "true");
+                    drawer.setAttribute("aria-hidden", "false");
+                    document.body.classList.add("menu-open");
+                };
+
+                const closeMenu = () => {
+                    overlay.classList.remove("menu-overlay-visible");
+                    drawer.classList.remove("menu-drawer-open");
+                    openButton.setAttribute("aria-expanded", "false");
+                    drawer.setAttribute("aria-hidden", "true");
+                    document.body.classList.remove("menu-open");
+                    window.setTimeout(() => {
+                        overlay.hidden = true;
+                        drawer.hidden = true;
+                    }, 180);
+                };
+
+                openButton.addEventListener("click", openMenu);
+                closeButton.addEventListener("click", closeMenu);
+                overlay.addEventListener("click", closeMenu);
+                drawer.querySelectorAll("a").forEach((link) => {
+                    link.addEventListener("click", closeMenu);
+                });
+                document.addEventListener("keydown", (event) => {
+                    if (event.key === "Escape" && !drawer.hidden) {
+                        closeMenu();
+                    }
+                });
+            })();
+        </script>
+    {% endif %}
+</body>
+</html>

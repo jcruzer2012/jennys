@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="section-heading standalone">
+    <div>
+        <p class="eyebrow">Client Profile</p>
+        <h2>{{ client.full_name }}</h2>
+        <p>Appointment history starts with upcoming visits and can be filtered to look back.</p>
+    </div>
+    <div class="actions-row">
+        <a class="button subtle" href="{{ url_for('main.edit_client', client_id=client.id) }}">Edit profile</a>
+        <a class="button" href="{{ url_for('main.create_appointment') }}">Add appointment</a>
+        <a class="button danger subtle" href="{{ url_for('main.delete_client', client_id=client.id) }}">Delete client</a>
+    </div>
+</section>
+
+<section class="grid two-col client-profile-layout">
+    <section class="card profile-summary">
+        {% if client.photo_filename %}
+            <img src="{{ url_for('main.uploaded_file', filename=client.photo_filename) }}" alt="{{ client.full_name }}">
+        {% else %}
+            <div class="avatar-placeholder">{{ client.first_name[:1] }}{{ client.last_name[:1] }}</div>
+        {% endif %}
+        <div>
+            <div class="client-header">
+                <h3>{{ client.full_name }}</h3>
+                {% if client.is_regular %}
+                    <span class="pill">Regular</span>
+                {% endif %}
+            </div>
+            <p>{{ client.phone or "No phone added" }}</p>
+            <p>{{ client.email or "No email added" }}</p>
+            <div class="note-card">
+                {{ client.notes or "No client notes yet." }}
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="section-heading standalone">
+            <div>
+                <p class="eyebrow">Appointment Range</p>
+                <h3>History and upcoming visits</h3>
+            </div>
+        </div>
+        <div class="filter-row">
+            <a class="button {% if date_range != 'upcoming' or start_date or end_date %}subtle{% endif %}" href="{{ url_for('main.client_profile', client_id=client.id, range='upcoming') }}">Upcoming</a>
+            <a class="button {% if date_range != 'past' or start_date or end_date %}subtle{% endif %}" href="{{ url_for('main.client_profile', client_id=client.id, range='past') }}">Past</a>
+            <a class="button {% if date_range != 'all' or start_date or end_date %}subtle{% endif %}" href="{{ url_for('main.client_profile', client_id=client.id, range='all') }}">All</a>
+        </div>
+        <form method="get" class="form-grid compact-form">
+            <label>
+                Start date
+                <input type="date" name="start_date" value="{{ start_date }}">
+            </label>
+            <label>
+                End date
+                <input type="date" name="end_date" value="{{ end_date }}">
+            </label>
+            <div class="actions-row filter-actions">
+                <button class="button" type="submit">Apply range</button>
+                <a class="button subtle" href="{{ url_for('main.client_profile', client_id=client.id) }}">Reset</a>
+            </div>
+        </form>
+    </section>
+</section>
+
+<section class="card">
+    <div class="section-heading">
+        <h3>Appointments</h3>
+        <span class="eyebrow">{{ appointments|length }} shown</span>
+    </div>
+    {% if appointments %}
+        <div class="list">
+            {% for appointment in appointments %}
+                <article class="list-item">
+                    <div>
+                        <strong>{{ appointment.title }}</strong>
+                        <p>{{ appointment.start_datetime.strftime("%A, %b %d, %Y at %I:%M %p") }} to {{ appointment.end_datetime.strftime("%I:%M %p") }}</p>
+                        {% if appointment.notes %}
+                            <small class="detail note-detail">Appointment notes: {{ appointment.notes }}</small>
+                        {% endif %}
+                        {% if appointment.recurring_series_id %}
+                            <small class="detail">{{ "Single-visit override" if appointment.is_override else "Recurring appointment" }}</small>
+                        {% endif %}
+                    </div>
+                    <a class="button subtle" href="{{ url_for('main.edit_appointment', appointment_id=appointment.id) }}">Open</a>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty">No appointments found for this range.</p>
+    {% endif %}
+</section>
+{% endblock %}

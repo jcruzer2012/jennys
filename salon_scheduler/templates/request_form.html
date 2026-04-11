@@ -1,0 +1,657 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<section class="card portal-banner">
+    <p class="eyebrow">Your Portal</p>
+    {% if pending_request and not editing_request %}
+        <h2>You have a schedule request pending.</h2>
+        <p>The stylist has not reviewed it yet. You can update that request below instead of sending a second one.</p>
+    {% elif pending_request and editing_request %}
+        <h2>Update your pending schedule request.</h2>
+        <p>Your earlier request is still waiting for approval, and you can edit it here.</p>
+    {% elif next_appointment %}
+        <h2>Your next appointment is on {{ next_appointment.start_datetime.strftime("%A, %B %d at %I:%M %p") }}</h2>
+        <p>{{ next_appointment.title }}{% if next_appointment.services %} | {{ next_appointment.services|map(attribute='display_name')|join(', ') }}{% endif %}</p>
+    {% else %}
+        <h2>No appointments are currently scheduled.</h2>
+        <p>Select a date and time below to request an appointment.</p>
+    {% endif %}
+</section>
+
+<section class="request-single-pane">
+    <section class="card side-pane">
+        {% if pending_request %}
+            <section class="request-step-card">
+                <div class="note-card pending-request-card">
+                    <p class="eyebrow">Pending Request</p>
+                    <strong>{{ pending_request.requested_start.strftime("%A, %B %d at %I:%M %p") }}</strong>
+                    <small>Status: {{ pending_request.status|title }}</small>
+                    {% if pending_request.services %}
+                        <small>Services: {{ pending_request.services|map(attribute='display_name')|join(', ') }}</small>
+                    {% endif %}
+                    {% if pending_request.promotion %}
+                        <small>Promotion: {{ pending_request.promotion.title }} | {{ '%.0f'|format(pending_request.promotion.discount_percent) }}% off {{ pending_request.promotion.service.display_name }}</small>
+                    {% endif %}
+                    {% if pending_request.message %}
+                        <small>{{ pending_request.message }}</small>
+                    {% endif %}
+                    {% if not editing_request %}
+                        <div class="actions-row">
+                            <a class="button" href="{{ url_for('main.edit_change_request', request_id=pending_request.id) }}">Edit pending request</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </section>
+        {% endif %}
+
+        {% if not pending_request or editing_request %}
+        <section class="request-step-card">
+            <div class="section-heading standalone">
+                <div>
+                    {% if next_appointment %}
+                      <h2>Need to reschedule?</h2>
+                    {% else %}
+                      <h2>Schedule your next appointment!</h2>
+                    {% endif %}
+                    <p class="eyebrow">Step 1</p>
+                    <h2>Select a date</h2>
+                    <p>Open the calendar popup to pick a day, then choose from the available start times.</p>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <form method="post" class="form-grid request-form-grid" {% if editing_request %}data-preserve-request-services="true"{% endif %}>
+                <section class="full note-panel">
+                    <p class="eyebrow">Client</p>
+                    <div class="note-card">{{ client.full_name }}</div>
+                </section>
+                <label>
+                    Existing appointment
+                    <select name="appointment_id" id="request_appointment_id">
+                        <option value="">No linked appointment</option>
+                        {% for appointment in appointments %}
+                        <option
+                            value="{{ appointment.id }}"
+                            data-client-id="{{ appointment.client_id }}"
+                            data-duration-minutes="{{ appointment.duration_minutes }}"
+                            data-appointment-notes="{{ (appointment.notes or 'No appointment notes for this visit.')|e }}"
+                            data-service-ids="{{ appointment.services|map(attribute='id')|join(',') }}"
+                            {% if form_values.appointment_id|string == appointment.id|string %}selected{% endif %}
+                        >
+                            {{ appointment.client.full_name }} | {{ appointment.title }} | {{ appointment.start_datetime.strftime("%b %d %I:%M %p") }}
+                        </option>
+                    {% endfor %}
+                </select>
+                </label>
+                <input type="hidden" name="requested_date" id="requested_date" value="{{ form_values.requested_date }}" required>
+                <label>
+                    Step 2: Requested start time
+                    <div class="request-date-action">
+                        <button class="button" type="button" id="open-request-calendar">Select from calendar</button>
+                    </div>
+                    <small id="selected-time-help">{% if form_values.requested_start_time %}Selected start time: {{ form_values.requested_start_time }}{% else %}Available start times will appear here after you choose a date.{% endif %}</small>
+                    <select name="requested_start_time" id="requested_start_time" class="visually-hidden-field" required aria-hidden="true" tabindex="-1">
+                        <option value="{{ form_values.requested_start_time }}">{{ form_values.requested_start_time or "Select Date from calendar button" }}</option>
+                    </select>
+                </label>
+                <section class="full request-date-summary">
+                    <div class="note-card" id="selected-date-display">{% if form_values.requested_date and form_values.requested_start_time %}{{ form_values.requested_date }} at {{ form_values.requested_start_time }}{% else %}Choose a date from the calendar popup.{% endif %}</div>
+                </section>
+                <label>
+                    Length of appointment
+                    <input type="number" min="0" step="5" name="duration_minutes" id="request_duration_minutes" value="{{ form_values.duration_minutes }}" required>
+                </label>
+                <section class="full scope-panel">
+                    <div class="section-heading standalone service-picker-heading">
+                        <div>
+                            <p class="eyebrow">Services</p>
+                            <p>Select the services you want included in this request.</p>
+                        </div>
+                    </div>
+                    {% if service_options %}
+                        <div class="service-picker-grid">
+                            {% for service in service_options %}
+                                <label class="scope-option service-option">
+                                    <input
+                                        type="checkbox"
+                                        name="service_ids"
+                                        value="{{ service.id }}"
+                                        data-buffer-minutes="{{ service.buffer_minutes or 0 }}"
+                                        {% if service.id in selected_service_ids %}checked{% endif %}
+                                    >
+                                    <span>
+                                        <strong>{{ service.display_name }}</strong>
+                                        <small>{{ service.description or "No description available." }}</small>
+                                        <small class="note-detail">${{ '%.2f'|format(service.price) }}</small>
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="note-card">No services are available to request yet.</div>
+                    {% endif %}
+                </section>
+                {% if promotion_options %}
+                    <label class="full">
+                        Promotion or discount
+                        <select name="promotion_id" id="request_promotion_id">
+                            <option value="">No promotion selected</option>
+                            {% for promotion in promotion_options %}
+                            <option value="{{ promotion.id }}" data-service-id="{{ promotion.service_id }}" {% if selected_promotion_id|string == promotion.id|string %}selected{% endif %}>
+                                {{ promotion.title }} | {{ promotion.service.display_name }} | {{ '%.0f'|format(promotion.discount_percent) }}% off
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small>Select one eligible promotion to apply to this request.</small>
+                    </label>
+                {% endif %}
+                <section class="full note-panel visually-hidden-field" aria-hidden="true">
+                    <p class="eyebrow">Appointment Details</p>
+                    <div class="note-card" id="appointment-request-details">Select an existing appointment to pull in its notes and length.</div>
+                </section>
+                <label class="full">
+                    Message
+                    <textarea name="message" rows="4" placeholder="Example: Can we move this to later that afternoon?">{{ form_values.message }}</textarea>
+                </label>
+                <div class="full actions-row">
+                    <button class="button" type="submit">{% if editing_request %}Update request{% else %}Submit request{% endif %}</button>
+                    {% if editing_request %}
+                        <a class="button subtle" href="{{ url_for('main.create_change_request') }}">Back to portal</a>
+                    {% endif %}
+                </div>
+            </form>
+        </section>
+        {% endif %}
+    </section>
+</section>
+
+<div class="calendar-modal-overlay" id="request-calendar-overlay" hidden></div>
+<section class="calendar-modal" id="request-calendar-modal" hidden aria-hidden="true">
+    <section class="card month-card calendar-modal-card">
+        <section class="section-heading standalone month-header">
+            <div>
+                <p class="eyebrow">Available Dates</p>
+                <h2>Select a day</h2>
+            </div>
+            <button class="button subtle calendar-close-button" type="button" id="close-request-calendar" aria-label="Close calendar">X</button>
+        </section>
+
+        <div class="request-calendar-scroll">
+            {% for section in calendar_sections %}
+                <section class="request-calendar-month-section">
+                    <h3 class="request-calendar-month-title">{{ section.month_start.strftime("%B %Y") }}</h3>
+
+                    <div class="month-weekdays request-desktop-calendar">
+                        <span>Sun</span>
+                        <span>Mon</span>
+                        <span>Tue</span>
+                        <span>Wed</span>
+                        <span>Thu</span>
+                        <span>Fri</span>
+                        <span>Sat</span>
+                    </div>
+
+                    <div class="month-grid request-month-grid request-desktop-calendar">
+                        {% for week in section.month_grid %}
+                            {% for cell in week %}
+                                <article
+                                    class="month-cell request-month-cell popup-request-cell {% if not cell.in_month %}month-cell-empty{% endif %} {% if cell.is_today %}month-cell-today{% endif %} {% if not cell.is_request_available and cell.in_month %}month-cell-blocked{% endif %}"
+                                    {% if cell.in_month %}
+                                        data-request-status="{{ 'available' if cell.is_request_available else 'unavailable' }}"
+                                    {% endif %}
+                                    {% if cell.in_month and cell.is_request_available %}
+                                        data-request-date="{{ cell.date.strftime('%Y-%m-%d') }}"
+                                        data-window-labels="{{ cell.available_window_labels|join('||') }}"
+                                        data-window-starts="{% for start_at, end_at in cell.available_windows %}{{ start_at.strftime('%H:%M') }}{% if not loop.last %}||{% endif %}{% endfor %}"
+                                        data-window-ends="{% for start_at, end_at in cell.available_windows %}{{ end_at.strftime('%H:%M') }}{% if not loop.last %}||{% endif %}{% endfor %}"
+                                        tabindex="0"
+                                    {% endif %}
+                                >
+                                    {% if cell.in_month %}
+                                        <div class="month-day">{{ cell.date.day }}</div>
+                                        <div class="month-events">
+                                            {% if cell.is_request_available %}
+                                                <div class="popup-status popup-status-available">
+                                                    <strong>&#10003;</strong>
+                                                </div>
+                                            {% else %}
+                                                <div class="popup-status popup-status-unavailable">
+                                                    <strong>&#10005;</strong>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                </article>
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+
+                    <div class="request-mobile-calendar">
+                        {% for cell in section.mobile_request_days %}
+                            <article
+                                class="request-mobile-day {% if cell.is_request_available %}request-mobile-day-available{% else %}request-mobile-day-unavailable{% endif %}"
+                                {% if cell.is_request_available %}
+                                    data-request-date="{{ cell.date.strftime('%Y-%m-%d') }}"
+                                    data-window-labels="{{ cell.available_window_labels|join('||') }}"
+                                    data-window-starts="{% for start_at, end_at in cell.available_windows %}{{ start_at.strftime('%H:%M') }}{% if not loop.last %}||{% endif %}{% endfor %}"
+                                    data-window-ends="{% for start_at, end_at in cell.available_windows %}{{ end_at.strftime('%H:%M') }}{% if not loop.last %}||{% endif %}{% endfor %}"
+                                    tabindex="0"
+                                {% endif %}
+                            >
+                                <div>
+                                    <strong>{{ cell.date.strftime("%a, %b %d") }}</strong>
+                                    {% if cell.is_request_available %}
+                                        <small>{{ cell.available_window_labels[0] }}{% if cell.available_window_labels|length > 1 %} + {{ cell.available_window_labels|length - 1 }} more{% endif %}</small>
+                                    {% else %}
+                                        <small>Not available</small>
+                                    {% endif %}
+                                </div>
+                                <span class="request-mobile-symbol">{% if cell.is_request_available %}&#10003;{% else %}&#10005;{% endif %}</span>
+                            </article>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endfor %}
+        </div>
+    </section>
+</section>
+
+<section class="calendar-modal" id="request-time-modal" hidden aria-hidden="true">
+    <section class="card month-card calendar-modal-card time-modal-card">
+        <section class="section-heading standalone month-header">
+            <div>
+                <p class="eyebrow">Available Times</p>
+                <h2 id="request-time-modal-title">Select an open window</h2>
+            </div>
+            <button class="button subtle calendar-close-button" type="button" id="close-request-time" aria-label="Close time selector">X</button>
+        </section>
+
+        <div class="time-option-list" id="request-time-options">
+            <div class="note-card">Choose a date first to view available windows.</div>
+        </div>
+    </section>
+</section>
+
+<section class="calendar-modal" id="request-exact-time-modal" hidden aria-hidden="true">
+    <section class="card month-card calendar-modal-card time-modal-card">
+        <section class="section-heading standalone month-header">
+            <div>
+                <p class="eyebrow">Pick A Time</p>
+                <h2 id="request-exact-time-title">Choose your start time</h2>
+            </div>
+            <button class="button subtle calendar-close-button" type="button" id="close-request-exact-time" aria-label="Close exact time selector">X</button>
+        </section>
+
+        <div class="time-picker-panel">
+            <div class="note-card" id="request-exact-time-window">Select a window first.</div>
+            <label class="time-picker-label">
+                Exact start time
+                <input type="time" id="request_exact_time_input" step="900">
+            </label>
+            <small id="request-exact-time-help">Choose a time inside the selected window.</small>
+            <div class="actions-row">
+                <button class="button" type="button" id="confirm-request-time">Use this time</button>
+            </div>
+        </div>
+    </section>
+</section>
+
+<script>
+    (() => {
+        const requestForm = document.querySelector(".request-form-grid");
+        const preserveRequestServices = requestForm?.dataset.preserveRequestServices === "true";
+        let initialServiceSelectionPreserved = false;
+        const appointmentSelect = document.getElementById("request_appointment_id");
+        const dateInput = document.getElementById("requested_date");
+        const dateDisplay = document.getElementById("selected-date-display");
+        const startInput = document.getElementById("requested_start_time");
+        const timeHelp = document.getElementById("selected-time-help");
+        const durationInput = document.getElementById("request_duration_minutes");
+        const detailsDisplay = document.getElementById("appointment-request-details");
+        const serviceCheckboxes = document.querySelectorAll('input[name="service_ids"]');
+        const promotionSelect = document.getElementById("request_promotion_id");
+        const cells = document.querySelectorAll("[data-request-date]");
+        const calendarButton = document.getElementById("open-request-calendar");
+        const calendarCloseButton = document.getElementById("close-request-calendar");
+        const calendarModal = document.getElementById("request-calendar-modal");
+        const calendarOverlay = document.getElementById("request-calendar-overlay");
+        const timeModal = document.getElementById("request-time-modal");
+        const timeModalTitle = document.getElementById("request-time-modal-title");
+        const timeOptions = document.getElementById("request-time-options");
+        const timeCloseButton = document.getElementById("close-request-time");
+        const exactTimeModal = document.getElementById("request-exact-time-modal");
+        const exactTimeTitle = document.getElementById("request-exact-time-title");
+        const exactTimeWindow = document.getElementById("request-exact-time-window");
+        const exactTimeHelp = document.getElementById("request-exact-time-help");
+        const exactTimeInput = document.getElementById("request_exact_time_input");
+        const exactTimeCloseButton = document.getElementById("close-request-exact-time");
+        const confirmExactTimeButton = document.getElementById("confirm-request-time");
+        let pendingWindowLabels = [];
+        let pendingWindowStarts = [];
+        let pendingWindowEnds = [];
+        let activeRequestDate = "";
+        let activeWindowLabel = "";
+        let activeWindowStart = "";
+        let activeWindowEnd = "";
+
+        const openModal = (modal) => {
+            if (!modal || !calendarOverlay) {
+                return;
+            }
+            modal.hidden = false;
+            modal.setAttribute("aria-hidden", "false");
+            calendarOverlay.hidden = false;
+            document.body.classList.add("menu-open");
+        };
+
+        const closeModal = (modal) => {
+            if (!modal) {
+                return;
+            }
+            modal.hidden = true;
+            modal.setAttribute("aria-hidden", "true");
+            if ((calendarModal?.hidden ?? true) && (timeModal?.hidden ?? true) && (exactTimeModal?.hidden ?? true)) {
+                calendarOverlay.hidden = true;
+                document.body.classList.remove("menu-open");
+            }
+        };
+
+        const closeAllModals = () => {
+            closeModal(calendarModal);
+            closeModal(timeModal);
+            closeModal(exactTimeModal);
+            calendarOverlay.hidden = true;
+            document.body.classList.remove("menu-open");
+        };
+
+        const setStartTimes = (starts) => {
+            startInput.innerHTML = "";
+            if (!starts.length) {
+                const option = document.createElement("option");
+                option.value = "";
+                option.textContent = "No available times";
+                startInput.appendChild(option);
+                timeHelp.textContent = "This date does not currently have requestable start times.";
+                return;
+            }
+
+            const placeholder = document.createElement("option");
+            placeholder.value = "";
+            placeholder.textContent = "Select an available time";
+            startInput.appendChild(placeholder);
+
+            starts.forEach((start) => {
+                const option = document.createElement("option");
+                option.value = start;
+                option.textContent = start;
+                startInput.appendChild(option);
+            });
+            timeHelp.textContent = "Choose one of the available start times for this date.";
+        };
+
+        const totalBlockedMinutes = () => {
+            const durationMinutes = parseInt(durationInput.value || "0", 10) || 0;
+            const serviceBufferMinutes = Array.from(serviceCheckboxes).reduce((total, checkbox) => {
+                if (!checkbox.checked) {
+                    return total;
+                }
+                return total + (parseInt(checkbox.dataset.bufferMinutes || "0", 10) || 0);
+            }, 0);
+            return Math.max(durationMinutes + serviceBufferMinutes, 0);
+        };
+
+        const addMinutes = (timeValue, minutes) => {
+            const [hours, mins] = timeValue.split(":").map((value) => parseInt(value, 10));
+            const totalMinutes = (hours * 60) + mins + minutes;
+            const boundedMinutes = Math.max(totalMinutes, 0);
+            const newHours = Math.floor(boundedMinutes / 60);
+            const newMinutes = boundedMinutes % 60;
+            return `${String(newHours).padStart(2, "0")}:${String(newMinutes).padStart(2, "0")}`;
+        };
+
+        const timeToMinutes = (timeValue) => {
+            const [hours, mins] = timeValue.split(":").map((value) => parseInt(value, 10));
+            return (hours * 60) + mins;
+        };
+
+        const formatFriendlyDate = (requestDate) => {
+            const chosenDate = new Date(`${requestDate}T12:00:00`);
+            return chosenDate.toLocaleDateString(undefined, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+            });
+        };
+
+        const updateSelectedDateDisplay = (requestDate, selectedStart, windows) => {
+            const friendlyDate = formatFriendlyDate(requestDate);
+            dateDisplay.textContent = selectedStart ? `${friendlyDate} at ${selectedStart}` : friendlyDate;
+            if (selectedStart) {
+                timeHelp.textContent = `Selected start time: ${selectedStart}`;
+            } else if (windows.length) {
+                timeHelp.textContent = "Choose one of the available start times for this date.";
+            }
+        };
+
+        const chooseTime = (requestDate, selectedStart, windows, starts) => {
+            dateInput.value = requestDate;
+            setStartTimes(starts);
+            startInput.value = selectedStart;
+            pendingWindowLabels = windows;
+            pendingWindowStarts = starts;
+            updateSelectedDateDisplay(requestDate, selectedStart, windows);
+            closeAllModals();
+        };
+
+        const openExactTimeModal = (requestDate, windowLabel, windowStart, windowEnd, windows, starts) => {
+            if (!exactTimeModal || !exactTimeInput) {
+                chooseTime(requestDate, windowStart, windows, starts);
+                return;
+            }
+
+            if (timeModal) {
+                timeModal.hidden = true;
+                timeModal.setAttribute("aria-hidden", "true");
+            }
+
+            const blockedMinutes = totalBlockedMinutes();
+            const latestStart = blockedMinutes > 0 ? addMinutes(windowEnd, -blockedMinutes) : windowEnd;
+
+            activeRequestDate = requestDate;
+            activeWindowLabel = windowLabel;
+            activeWindowStart = windowStart;
+            activeWindowEnd = windowEnd;
+            exactTimeTitle.textContent = formatFriendlyDate(requestDate);
+            exactTimeWindow.textContent = `Open window: ${windowLabel}`;
+            exactTimeInput.min = windowStart;
+            if (timeToMinutes(latestStart) < timeToMinutes(windowStart)) {
+                exactTimeInput.max = windowStart;
+                exactTimeInput.value = "";
+                exactTimeInput.disabled = true;
+                exactTimeHelp.textContent = "That window is too short for the current appointment length and selected services.";
+            } else {
+                exactTimeInput.max = latestStart;
+                exactTimeInput.value = windowStart;
+                exactTimeInput.disabled = false;
+                exactTimeHelp.textContent = `Choose a time between ${windowStart} and ${latestStart}.`;
+            }
+            openModal(exactTimeModal);
+        };
+
+        const openTimeModal = (requestDate, windows, starts, ends) => {
+            if (!timeModal || !timeOptions) {
+                chooseTime(requestDate, starts[0] || "", windows, starts);
+                return;
+            }
+
+            pendingWindowLabels = windows;
+            pendingWindowStarts = starts;
+            pendingWindowEnds = ends;
+            timeModalTitle.textContent = formatFriendlyDate(requestDate);
+            timeOptions.innerHTML = "";
+
+            if (!starts.length) {
+                timeOptions.innerHTML = '<div class="note-card">No requestable times are available for this date.</div>';
+            } else {
+                windows.forEach((windowLabel, index) => {
+                    const optionButton = document.createElement("button");
+                    optionButton.type = "button";
+                    optionButton.className = "time-option-button";
+                    optionButton.innerHTML = `<strong>${windowLabel}</strong><small>Pick a start time in this window</small>`;
+                    optionButton.addEventListener("click", () => {
+                        openExactTimeModal(
+                            requestDate,
+                            windowLabel,
+                            starts[index],
+                            ends[index],
+                            windows,
+                            starts,
+                        );
+                    });
+                    timeOptions.appendChild(optionButton);
+                });
+            }
+
+            openModal(timeModal);
+        };
+
+        const syncAppointmentDetails = () => {
+            if (!appointmentSelect) {
+                return;
+            }
+            const selected = appointmentSelect.options[appointmentSelect.selectedIndex];
+            if (!selected || !selected.value) {
+                durationInput.value = 60;
+                detailsDisplay.textContent = "Select an existing appointment to pull in its notes and length.";
+                serviceCheckboxes.forEach((checkbox) => {
+                    checkbox.checked = false;
+                });
+                return;
+            }
+            durationInput.value = selected.dataset.durationMinutes || 60;
+            detailsDisplay.textContent = selected.dataset.appointmentNotes || "No appointment notes for this visit.";
+            if (preserveRequestServices && !initialServiceSelectionPreserved) {
+                initialServiceSelectionPreserved = true;
+                return;
+            }
+            const selectedIds = (selected.dataset.serviceIds || "").split(",").filter(Boolean);
+            serviceCheckboxes.forEach((checkbox) => {
+                checkbox.checked = selectedIds.includes(checkbox.value);
+            });
+            syncPromotionOptions();
+        };
+
+        const syncPromotionOptions = () => {
+            if (!promotionSelect) {
+                return;
+            }
+            const selectedServiceIds = new Set(
+                Array.from(serviceCheckboxes)
+                    .filter((checkbox) => checkbox.checked)
+                    .map((checkbox) => checkbox.value)
+            );
+            let hasVisiblePromotion = false;
+            Array.from(promotionSelect.options).forEach((option, index) => {
+                if (index === 0) {
+                    option.hidden = false;
+                    return;
+                }
+                const matches = selectedServiceIds.has(option.dataset.serviceId);
+                option.hidden = !matches;
+                if (!matches && option.selected) {
+                    promotionSelect.value = "";
+                }
+                if (matches) {
+                    hasVisiblePromotion = true;
+                }
+            });
+            if (!hasVisiblePromotion) {
+                promotionSelect.value = "";
+            }
+        };
+
+        const updateSelectedCell = (activeCell) => {
+            cells.forEach((cell) => cell.classList.remove("month-cell-selected"));
+            if (activeCell) {
+                activeCell.classList.add("month-cell-selected");
+            }
+        };
+
+        cells.forEach((cell) => {
+            const pickDate = () => {
+                const requestDate = cell.dataset.requestDate;
+                const windows = (cell.dataset.windowLabels || "").split("||").filter(Boolean);
+                const starts = (cell.dataset.windowStarts || "").split("||").filter(Boolean);
+                const ends = (cell.dataset.windowEnds || "").split("||").filter(Boolean);
+                updateSelectedCell(cell);
+                closeModal(calendarModal);
+                openTimeModal(requestDate, windows, starts, ends);
+            };
+
+            cell.addEventListener("click", pickDate);
+            cell.addEventListener("keydown", (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    pickDate();
+                }
+            });
+        });
+
+        if (appointmentSelect) {
+            appointmentSelect.addEventListener("change", syncAppointmentDetails);
+            syncAppointmentDetails();
+        }
+
+        serviceCheckboxes.forEach((checkbox) => {
+            checkbox.addEventListener("change", syncPromotionOptions);
+        });
+        syncPromotionOptions();
+
+        if (calendarButton) {
+            calendarButton.addEventListener("click", () => openModal(calendarModal));
+        }
+
+        if (calendarCloseButton) {
+            calendarCloseButton.addEventListener("click", () => closeModal(calendarModal));
+        }
+
+        if (timeCloseButton) {
+            timeCloseButton.addEventListener("click", () => closeModal(timeModal));
+        }
+
+        if (exactTimeCloseButton) {
+            exactTimeCloseButton.addEventListener("click", () => closeModal(exactTimeModal));
+        }
+
+        if (calendarOverlay) {
+            calendarOverlay.addEventListener("click", closeAllModals);
+        }
+
+        if (startInput) {
+            startInput.addEventListener("change", () => {
+                if (!dateInput.value || !startInput.value) {
+                    return;
+                }
+                updateSelectedDateDisplay(dateInput.value, startInput.value, pendingWindowLabels);
+            });
+        }
+
+        if (confirmExactTimeButton) {
+            confirmExactTimeButton.addEventListener("click", () => {
+                if (!exactTimeInput || !exactTimeInput.value) {
+                    exactTimeHelp.textContent = "Select an exact start time before continuing.";
+                    return;
+                }
+                if (timeToMinutes(exactTimeInput.value) < timeToMinutes(activeWindowStart) || timeToMinutes(exactTimeInput.value) > timeToMinutes(exactTimeInput.max)) {
+                    exactTimeHelp.textContent = `Choose a time between ${activeWindowStart} and ${exactTimeInput.max}.`;
+                    return;
+                }
+                chooseTime(activeRequestDate, exactTimeInput.value, pendingWindowLabels, pendingWindowStarts);
+            });
+        }
+    })();
+</script>
+{% endblock %}

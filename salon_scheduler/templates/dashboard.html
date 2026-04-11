@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">Overview</p>
+        <h2>Keep your regulars steady and your changes simple.</h2>
+        <p>Track upcoming appointments, spot pending client requests, and adjust one visit without accidentally changing the full recurring schedule.</p>
+    </div>
+    <div class="stats">
+        <article class="card stat">
+            <span>{{ client_count }}</span>
+            <p>Total clients</p>
+        </article>
+        <article class="card stat">
+            <span>{{ regular_count }}</span>
+            <p>Regular clients</p>
+        </article>
+    </div>
+</section>
+
+<section class="grid two-col">
+    <div class="card">
+        <div class="section-heading">
+            <h3>Upcoming appointments</h3>
+            <a href="{{ url_for('main.schedule') }}">View full schedule</a>
+        </div>
+        {% if upcoming_appointments %}
+            <div class="list">
+                {% for appointment in upcoming_appointments %}
+                    <article class="list-item">
+                        <div>
+                            <strong>{{ appointment.client.full_name }}</strong>
+                            <p>{{ appointment.title }}</p>
+                            <small>{{ appointment.start_datetime.strftime("%b %d, %Y %I:%M %p") }} to {{ appointment.end_datetime.strftime("%I:%M %p") }}</small>
+                            {% if appointment.client.notes %}
+                                <small class="detail note-detail">Client notes: {{ appointment.client.notes }}</small>
+                            {% endif %}
+                        </div>
+                        <a class="button subtle" href="{{ url_for('main.edit_appointment', appointment_id=appointment.id) }}">Edit</a>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty">No appointments yet.</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="section-heading">
+            <h3>Pending client requests</h3>
+            <a href="{{ url_for('main.create_change_request') }}">Add request</a>
+        </div>
+        {% if pending_requests %}
+            <div class="list">
+                {% for item in pending_requests %}
+                    <article class="list-item request-item">
+                        <div>
+                            <strong>{{ item.client.full_name }}</strong>
+                            <p>{{ item.message or "Requested a schedule change." }}</p>
+                            <small>{{ item.requested_start.strftime("%b %d, %Y %I:%M %p") }} to {{ item.requested_end.strftime("%I:%M %p") }}</small>
+                        </div>
+                        <div class="actions">
+                            <form method="post" action="{{ url_for('main.handle_change_request', request_id=item.id, action='approve') }}">
+                                <button class="button" type="submit">Approve</button>
+                            </form>
+                            <form method="post" action="{{ url_for('main.handle_change_request', request_id=item.id, action='deny') }}">
+                                <button class="button subtle" type="submit">Deny</button>
+                            </form>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty">No pending requests.</p>
+        {% endif %}
+    </div>
+</section>
+
+<section class="grid two-col dashboard-bottom">
+    <div class="card">
+        <div class="section-heading">
+            <h3>Clients needing reschedule</h3>
+            <a href="{{ url_for('main.manage_unavailability') }}">Manage time off</a>
+        </div>
+        {% if reschedule_appointments %}
+            <div class="list">
+                {% for appointment in reschedule_appointments %}
+                    <article class="list-item">
+                        <div>
+                            <strong>{{ appointment.client.full_name }}</strong>
+                            <p>{{ appointment.title }}</p>
+                            <small>{{ appointment.start_datetime.strftime("%b %d, %Y %I:%M %p") }} to {{ appointment.end_datetime.strftime("%I:%M %p") }}</small>
+                            {% if appointment.client.notes %}
+                                <small class="detail note-detail">Client notes: {{ appointment.client.notes }}</small>
+                            {% endif %}
+                        </div>
+                        <a class="button subtle" href="{{ url_for('main.edit_appointment', appointment_id=appointment.id) }}">Reschedule</a>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty">No clients currently conflict with time off.</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="section-heading">
+            <h3>Schedule rules</h3>
+            <a href="{{ url_for('main.manage_unavailability') }}">Manage availability</a>
+        </div>
+        <div class="hours-summary">
+            {% for item in working_hours %}
+                <div class="hours-pill">
+                    <strong>{{ ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][item.weekday] }}</strong>
+                    <span>{% if item.is_active and item.start_time and item.end_time %}{{ item.start_time }} - {{ item.end_time }}{% else %}Off{% endif %}</span>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="section-heading subheading">
+            <h3>Upcoming time off</h3>
+        </div>
+        {% if upcoming_unavailability %}
+            <div class="list">
+                {% for item in upcoming_unavailability %}
+                    <article class="list-item">
+                        <div>
+                            <strong>{{ item.title }}</strong>
+                            <p>
+                                {% if item.is_recurring %}
+                                    Weekly on {{ ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][item.weekday] }}
+                                {% else %}
+                                    {{ item.notes or "Unavailable" }}
+                                {% endif %}
+                            </p>
+                            <small>
+                                {% if item.is_recurring %}
+                                    {{ item.start_datetime.strftime("%I:%M %p") }} to {{ item.end_datetime.strftime("%I:%M %p") }}{% if item.repeat_until %} until {{ item.repeat_until.strftime("%b %d, %Y") }}{% endif %}
+                                {% else %}
+                                    {{ item.start_datetime.strftime("%b %d, %Y %I:%M %p") }} to {{ item.end_datetime.strftime("%b %d, %Y %I:%M %p") }}
+                                {% endif %}
+                            </small>
+                        </div>
+                        <a class="button subtle" href="{{ url_for('main.edit_unavailability', unavailability_id=item.id) }}">Edit</a>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty">No time off blocks added yet.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="section-heading standalone">
+    <div>
+        <p class="eyebrow">Clients</p>
+        <h2>Client profiles</h2>
+    </div>
+    <a class="button" href="{{ url_for('main.create_client') }}">Add client</a>
+</section>
+
+<section class="cards">
+    {% for client in clients %}
+        <article class="card client-card">
+            {% if client.photo_filename %}
+                <img src="{{ url_for('main.uploaded_file', filename=client.photo_filename) }}" alt="{{ client.full_name }}">
+            {% else %}
+                <div class="avatar-placeholder">{{ client.first_name[:1] }}{{ client.last_name[:1] }}</div>
+            {% endif %}
+            <div>
+                <div class="client-header">
+                    <h3><a href="{{ url_for('main.client_profile', client_id=client.id) }}">{{ client.full_name }}</a></h3>
+                    {% if client.is_regular %}
+                        <span class="pill">Regular</span>
+                    {% endif %}
+                </div>
+                <p>{{ client.phone or "No phone added" }}</p>
+                <p>{{ client.email or "No email added" }}</p>
+                <p class="notes">{{ client.notes or "No notes yet." }}</p>
+            </div>
+            <div class="actions-row">
+                <a class="button subtle" href="{{ url_for('main.client_profile', client_id=client.id) }}">Open profile</a>
+                <a class="button subtle" href="{{ url_for('main.edit_client', client_id=client.id) }}">Edit profile</a>
+            </div>
+        </article>
+    {% else %}
+        <p class="empty">No clients added yet.</p>
+    {% endfor %}
+</section>
+{% endblock %}

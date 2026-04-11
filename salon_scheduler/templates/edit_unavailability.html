@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="section-heading standalone">
+    <div>
+        <p class="eyebrow">Time Off</p>
+        <h2>Edit blocked time</h2>
+        <p>Update this unavailable block and save it back to your schedule.</p>
+    </div>
+    <a class="button subtle" href="{{ url_for('main.manage_unavailability') }}">Back to availability</a>
+</section>
+
+<section class="card form-shell">
+    <form method="post" class="form-grid">
+        <label class="full">
+            Title
+            <input type="text" name="title" value="{{ blocked_time.title }}" required>
+        </label>
+        <label>
+            Start
+            <input type="datetime-local" name="start_datetime" value="{{ blocked_time.start_datetime.strftime('%Y-%m-%dT%H:%M') }}" required>
+        </label>
+        <label>
+            End
+            <input type="datetime-local" name="end_datetime" value="{{ blocked_time.end_datetime.strftime('%Y-%m-%dT%H:%M') }}" required>
+        </label>
+        <label class="checkbox inline-checkbox full">
+            <input type="checkbox" name="is_all_day" id="edit_is_all_day" {% if is_all_day %}checked{% endif %}>
+            <span>All day</span>
+        </label>
+        <label class="full">
+            Notes
+            <textarea name="notes" rows="4">{{ blocked_time.notes or '' }}</textarea>
+        </label>
+        <label class="checkbox inline-checkbox full">
+            <input type="checkbox" name="is_recurring" {% if blocked_time.is_recurring %}checked{% endif %}>
+            <span>Repeat this weekly time off</span>
+        </label>
+        <label class="full">
+            Repeat until
+            <input type="date" name="repeat_until" value="{{ blocked_time.repeat_until.strftime('%Y-%m-%d') if blocked_time.repeat_until else '' }}">
+            <small>Leave blank if this weekly time off should keep repeating.</small>
+        </label>
+        <div class="full actions-row">
+            <button class="button" type="submit">Save changes</button>
+        </div>
+    </form>
+</section>
+
+<script>
+    (() => {
+        const allDayToggle = document.getElementById("edit_is_all_day");
+        const endInput = document.querySelector('input[name="end_datetime"]');
+        if (!allDayToggle || !endInput) {
+            return;
+        }
+
+        const sync = () => {
+            endInput.disabled = allDayToggle.checked;
+            if (allDayToggle.checked) {
+                endInput.dataset.previousValue = endInput.value;
+                endInput.value = endInput.value || "";
+            } else if (endInput.dataset.previousValue && !endInput.value) {
+                endInput.value = endInput.dataset.previousValue;
+            }
+        };
+
+        allDayToggle.addEventListener("change", sync);
+        sync();
+    })();
+</script>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card form-shell">
+    <div class="section-heading standalone">
+        <div>
+            <p class="eyebrow">Client Portal</p>
+            <h2>Create your account</h2>
+            <p>New clients can create a portal account here and then request an appointment.</p>
+        </div>
+    </div>
+    <form method="post" class="form-grid request-form-grid">
+        <label>
+            First name
+            <input type="text" name="first_name" required>
+        </label>
+        <label>
+            Last name
+            <input type="text" name="last_name" required>
+        </label>
+        <label>
+            Phone number
+            <input type="text" name="phone" required>
+        </label>
+        <label>
+            Email
+            <input type="email" name="email">
+        </label>
+        <label class="full">
+            Birthdate
+            <input type="date" name="birthdate">
+        </label>
+        <div class="actions-row">
+            <button class="button" type="submit">Create account</button>
+            <a class="button subtle" href="{{ url_for('main.home') }}">Back to sign in</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

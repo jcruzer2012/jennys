@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="section-heading standalone">
+    <div>
+        <p class="eyebrow">Services</p>
+        <h2>Service library</h2>
+        <p>Create the services you offer so they can be attached to appointments.</p>
+    </div>
+    <a class="button" href="{{ url_for('main.create_service') }}">Add service</a>
+</section>
+
+<section class="cards">
+    {% for service in services %}
+        <article class="card client-card service-card">
+            <div>
+                <div class="client-header">
+                    <h3>{{ service.display_name }}</h3>
+                </div>
+                <p>{{ service.description or "No client-facing description yet." }}</p>
+                <p class="notes">Internal notes: {{ service.internal_description or "No internal notes yet." }}</p>
+                <div class="service-money-row">
+                    <span class="pill">Price ${{ '%.2f'|format(service.price) }}</span>
+                    <span class="pill subtle-pill">Cost ${{ '%.2f'|format(service.cost) }}</span>
+                    <span class="pill subtle-pill">Buffer {{ service.buffer_minutes }} min</span>
+                </div>
+            </div>
+            <div class="actions-row">
+                <a class="button subtle" href="{{ url_for('main.edit_service', service_id=service.id) }}">Edit service</a>
+            </div>
+        </article>
+    {% else %}
+        <p class="empty">No services added yet.</p>
+    {% endfor %}
+</section>
+{% endblock %}

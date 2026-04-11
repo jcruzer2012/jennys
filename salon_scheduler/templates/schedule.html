@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="section-heading standalone">
+    <a class="button" href="{{ url_for('main.create_appointment') }}">Add appointment</a>
+</section>
+
+<section class="schedule-layout">
+    <div class="schedule-main">
+        <section class="section-heading standalone month-header">
+            <div>
+                <p class="eyebrow">Month At A Glance</p>
+                <h2>{{ selected_month.strftime("%B %Y") }}</h2>
+                <p>Click any day to focus just that day's appointments.</p>
+            </div>
+            <div class="month-nav">
+                <a class="button subtle" href="{{ url_for('main.schedule', month=previous_month) }}">Previous month</a>
+                <a class="button subtle" href="{{ url_for('main.schedule') }}">Current month</a>
+                <a class="button subtle" href="{{ url_for('main.schedule', month=next_month_param) }}">Next month</a>
+            </div>
+        </section>
+
+        <section class="card month-card">
+            <div class="month-weekdays">
+                <span>Sun</span>
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+                <span>Thu</span>
+                <span>Fri</span>
+                <span>Sat</span>
+            </div>
+
+            <div class="month-grid">
+                {% for week in month_grid %}
+                    {% for cell in week %}
+                        <article
+                            class="month-cell {% if not cell.in_month %}month-cell-empty{% endif %} {% if cell.is_today %}month-cell-today{% endif %} {% if cell.is_all_day_off %}month-cell-blocked{% endif %} {% if selected_date and cell.in_month and selected_date == cell.date %}month-cell-selected{% endif %}"
+                            {% if cell.in_month %}data-day-url="{{ url_for('main.schedule', month=selected_month.strftime('%Y-%m'), selected_date=cell.date.strftime('%Y-%m-%d')) }}"{% endif %}
+                        >
+                            {% if cell.in_month %}
+                                <div class="month-day">{{ cell.date.day }}</div>
+                                <div class="month-events">
+                                    {% if cell.is_all_day_off %}
+                                        <div class="month-blocked-banner">
+                                            <strong>X All day off</strong>
+                                        </div>
+                                    {% endif %}
+                                    {% for appointment in cell.appointments[:3] %}
+                                        <a class="month-event" href="{{ url_for('main.edit_appointment', appointment_id=appointment.id, source='schedule') }}">
+                                            <span>{{ appointment.start_datetime.strftime("%I:%M") }} {{ appointment.client.full_name }}</span>
+                                        </a>
+                                    {% endfor %}
+                                    {% if cell.appointments|length > 3 %}
+                                        <small>+ {{ cell.appointments|length - 3 }} more</small>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </article>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <aside class="schedule-side">
+        <section class="card side-pane">
+            <div class="section-heading standalone">
+                <div>
+                    <p class="eyebrow">{% if selected_date %}Selected Day{% else %}Next 3 Weeks{% endif %}</p>
+                    <h3>{% if selected_date %}{{ selected_date.strftime("%A, %B %d") }}{% else %}Upcoming appointments{% endif %}</h3>
+                    <p>{% if selected_date %}Only appointments for the selected day are shown here.{% else %}Use this side panel for quick edits and the near-term view.{% endif %}</p>
+                </div>
+                {% if selected_date %}
+                    <a class="button subtle" href="{{ url_for('main.schedule', month=selected_month.strftime('%Y-%m')) }}">Clear day view</a>
+                {% endif %}
+            </div>
+
+            {% set visible_appointments = daily_appointments if selected_date else appointments %}
+            {% if visible_appointments %}
+                <div class="list compact-list">
+                    {% for appointment in visible_appointments %}
+                        <article class="list-item schedule-item">
+                            <div>
+                                <strong>{{ appointment.client.full_name }}</strong>
+                                <p>{{ appointment.title }}</p>
+                                <small>{{ appointment.start_datetime.strftime("%A, %b %d at %I:%M %p") }} to {{ appointment.end_datetime.strftime("%I:%M %p") }}</small>
+                                {% if appointment.client.notes %}
+                                    <small class="detail note-detail">Client notes: {{ appointment.client.notes }}</small>
+                                {% endif %}
+                                {% if appointment.recurring_series_id %}
+                                    <small class="detail">{{ "Single-visit override" if appointment.is_override else "Recurring appointment" }}</small>
+                                {% endif %}
+                            </div>
+                            <a class="button subtle" href="{{ url_for('main.edit_appointment', appointment_id=appointment.id, source='schedule') }}">Edit</a>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty">{% if selected_date %}No appointments on this day.{% else %}No appointments in the next few weeks.{% endif %}</p>
+            {% endif %}
+        </section>
+    </aside>
+</section>
+
+<script>
+    (() => {
+        const cells = document.querySelectorAll("[data-day-url]");
+        cells.forEach((cell) => {
+            cell.addEventListener("click", (event) => {
+                if (event.target.closest("a")) {
+                    return;
+                }
+                window.location.href = cell.dataset.dayUrl;
+            });
+        });
+    })();
+</script>
+{% endblock %}

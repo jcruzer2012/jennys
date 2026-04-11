@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card form-shell">
+    <div class="section-heading standalone">
+        <div>
+            <p class="eyebrow">Stylist Access</p>
+            <h2>Sign in</h2>
+        </div>
+    </div>
+    <form method="post" class="form-grid request-form-grid">
+        <input type="hidden" name="next" value="{{ next }}">
+        <label>
+            Username
+            <input type="text" name="username" required>
+        </label>
+        <label>
+            Password
+            <input type="password" name="password" required>
+        </label>
+        <div class="actions-row">
+            <button class="button" type="submit">Sign in</button>
+        </div>
+    </form>
+    <p class="stylist-link">Forgot your password? <a href="{{ url_for('main.stylist_reset_password') }}">Reset it here</a></p>
+</section>
+{% endblock %}

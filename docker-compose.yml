@@ -1,0 +1,11 @@
+services:
+  web:
+    build:
+      context: .
+    ports:
+      - "8000:8000"
+    environment:
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-change-me-in-production}
+    volumes:
+      - ./instance:/app/instance
+    restart: unless-stopped

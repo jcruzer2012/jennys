@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="form-shell card">
+    <div class="section-heading standalone">
+        <div>
+            <p class="eyebrow">My Profile</p>
+            <h2>Client request settings</h2>
+            <p>Control how close to the current time clients can request appointments and how far ahead the portal should allow booking requests.</p>
+        </div>
+    </div>
+
+    <form method="post" class="form-grid">
+        <label>
+            Minimum notice in hours
+            <input type="number" min="0" step="1" name="minimum_notice_hours" value="{{ stylist.minimum_notice_hours }}" required>
+            <small>Clients will only see requestable times that start after this notice window.</small>
+        </label>
+        <label>
+            Booking horizon in days
+            <input type="number" min="0" step="1" name="booking_horizon_days" value="{{ stylist.booking_horizon_days }}" required>
+            <small>Clients cannot request appointments beyond this many days in the future.</small>
+        </label>
+        <div class="full actions-row">
+            <button class="button" type="submit">Save settings</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="schedule-layout request-layout appointment-layout">
+    <div class="schedule-main">
+        <section class="section-heading standalone month-header">
+            <div>
+                <p class="eyebrow">Appointment</p>
+                <h2>{{ "Edit appointment" if appointment else "Add an appointment" }}</h2>
+            </div>
+            <div class="month-nav">
+                <a class="button subtle" href="{{ url_for(request.endpoint, appointment_id=appointment.id, source=request.args.get('source'), month=previous_month) if appointment else url_for(request.endpoint, month=previous_month) }}">Previous month</a>
+                <a class="button subtle" href="{{ url_for(request.endpoint, appointment_id=appointment.id, source=request.args.get('source')) if appointment else url_for(request.endpoint) }}">Current month</a>
+                <a class="button subtle" href="{{ url_for(request.endpoint, appointment_id=appointment.id, source=request.args.get('source'), month=next_month_param) if appointment else url_for(request.endpoint, month=next_month_param) }}">Next month</a>
+            </div>
+        </section>
+
+        <section class="card month-card">
+            <div class="month-weekdays">
+                <span>Sun</span>
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+                <span>Thu</span>
+                <span>Fri</span>
+                <span>Sat</span>
+            </div>
+
+            <div class="month-grid">
+                {% for week in month_grid %}
+                    {% for cell in week %}
+                        <article class="month-cell {% if not cell.in_month %}month-cell-empty{% endif %} {% if cell.is_today %}month-cell-today{% endif %} {% if cell.is_all_day_off %}month-cell-blocked{% endif %}">
+                            {% if cell.in_month %}
+                                <div class="month-day">{{ cell.date.day }}</div>
+                                <div class="month-events">
+                                    {% if cell.is_all_day_off %}
+                                        <div class="month-blocked-banner">
+                                            <strong>X All day off</strong>
+                                        </div>
+                                    {% endif %}
+                                    {% for month_appointment in cell.appointments[:3] %}
+                                        <a class="month-event" href="{{ url_for('main.edit_appointment', appointment_id=month_appointment.id, source=request.args.get('source'), month=selected_month.strftime('%Y-%m')) }}">
+                                            <span>{{ month_appointment.start_datetime.strftime("%I:%M") }} {{ month_appointment.client.full_name }}</span>
+                                        </a>
+                                    {% endfor %}
+                                    {% if cell.appointments|length > 3 %}
+                                        <small>+ {{ cell.appointments|length - 3 }} more</small>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </article>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <aside class="schedule-side">
+        <section class="card side-pane">
+            <form method="post" class="form-grid request-form-grid">
+                <label class="full">
+                    Client
+                    <select name="client_id" id="client_id" required>
+                        {% for client in clients %}
+                            <option
+                                value="{{ client.id }}"
+                                data-client-notes="{{ (client.notes or 'No client notes yet.')|e }}"
+                                {% if appointment and appointment.client_id == client.id %}selected{% endif %}
+                            >
+                                {{ client.full_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    Service or title
+                    <input type="text" name="title" value="{{ appointment.title if appointment else '' }}" required>
+                </label>
+                <label>
+                    Recurrence
+                    <select name="recurrence" {% if appointment and appointment.recurring_series_id %}disabled{% endif %}>
+                        <option value="none" {% if not appointment or not appointment.recurring_series_id %}selected{% endif %}>One time only</option>
+                        <option value="weekly" {% if appointment and appointment.recurring_series and appointment.recurring_series.recurrence == 'weekly' %}selected{% endif %}>Weekly</option>
+                        <option value="biweekly" {% if appointment and appointment.recurring_series and appointment.recurring_series.recurrence == 'biweekly' %}selected{% endif %}>Every 2 weeks</option>
+                    </select>
+                    {% if appointment and appointment.recurring_series_id %}
+                        <small>Recurrence is set when the appointment is first created.</small>
+                    {% elif appointment %}
+                        <small>You can convert this one-time appointment into a recurring one here.</small>
+                    {% endif %}
+                </label>
+                <label>
+                    Start
+                    <input type="datetime-local" name="start_datetime" value="{{ appointment.start_datetime.strftime('%Y-%m-%dT%H:%M') if appointment else '' }}" required>
+                </label>
+                <label>
+                    Length of appointment
+                    <input type="number" min="0" step="5" name="duration_minutes" value="{{ appointment.duration_minutes if appointment else 60 }}" required>
+                    <small>Minutes for the service itself.</small>
+                </label>
+                <section class="note-panel">
+                    <p class="eyebrow">Buffer Time</p>
+                    <div class="note-card">Buffer is automatically calculated from the services selected for this appointment.</div>
+                </section>
+                <section class="full scope-panel">
+                    <div class="section-heading standalone service-picker-heading">
+                        <div>
+                            <p class="eyebrow">Services</p>
+                            <p>Select each service included in this appointment.</p>
+                        </div>
+                        <a class="button subtle" href="{{ url_for('main.create_service') }}">Add service</a>
+                    </div>
+                    {% if service_options %}
+                        <div class="service-picker-grid">
+                            {% for service in service_options %}
+                                <label class="scope-option service-option">
+                                    <input
+                                        type="checkbox"
+                                        name="service_ids"
+                                        value="{{ service.id }}"
+                                        {% if service.id in selected_service_ids %}checked{% endif %}
+                                    >
+                                    <span>
+                                        <strong>{{ service.display_name }}</strong>
+                                        <small>{{ service.description or "No client-facing description yet." }}</small>
+                                        <small class="note-detail">${{ '%.2f'|format(service.price) }} | {{ service.buffer_minutes }} min buffer</small>
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="note-card">No services added yet. Create a service first, then come back to attach it to appointments.</div>
+                    {% endif %}
+                </section>
+                <label class="full">
+                    Appointment notes
+                    <textarea name="notes" rows="4">{{ appointment.notes if appointment else '' }}</textarea>
+                </label>
+                <section class="full note-panel">
+                    <p class="eyebrow">Client Notes</p>
+                    <div class="note-card" id="client-notes-display">
+                        {% if appointment and appointment.client %}
+                            {{ appointment.client.notes or "No client notes yet." }}
+                        {% elif clients %}
+                            {{ clients[0].notes or "No client notes yet." }}
+                        {% else %}
+                            No client notes yet.
+                        {% endif %}
+                    </div>
+                </section>
+                {% if appointment and appointment.recurring_series_id and show_series_options %}
+                    <section class="full scope-panel">
+                        <p class="eyebrow">Edit Scope</p>
+                        <label class="scope-option">
+                            <input type="radio" name="edit_scope" value="single" checked>
+                            <span>Just this appointment</span>
+                        </label>
+                        <label class="scope-option">
+                            <input type="radio" name="edit_scope" value="series">
+                            <span>Edit the recurring series</span>
+                        </label>
+                    </section>
+                {% endif %}
+                <div class="full actions-row">
+                    <button class="button" type="submit">Save appointment</button>
+                </div>
+            </form>
+        </section>
+    </aside>
+</section>
+
+<script>
+    (() => {
+        const clientSelect = document.getElementById("client_id");
+        const notesDisplay = document.getElementById("client-notes-display");
+        if (!clientSelect || !notesDisplay) {
+            return;
+        }
+
+        const syncNotes = () => {
+            const selected = clientSelect.options[clientSelect.selectedIndex];
+            notesDisplay.textContent = selected?.dataset.clientNotes || "No client notes yet.";
+        };
+
+        clientSelect.addEventListener("change", syncNotes);
+        syncNotes();
+    })();
+</script>
+{% endblock %}

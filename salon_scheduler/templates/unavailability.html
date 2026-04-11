@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="section-heading standalone">
+    <div>
+        <p class="eyebrow">Time Off</p>
+        <h2>Availability setup</h2>
+        <p>Set weekly working hours, then block out one-time or recurring time off.</p>
+    </div>
+</section>
+
+<section class="card working-hours-card">
+    <div class="section-heading standalone">
+        <div>
+            <h3>Weekly working hours</h3>
+            <p>Example: Monday to Friday from 9:00 to 5:00.</p>
+        </div>
+    </div>
+    <form method="post" class="hours-grid">
+        <input type="hidden" name="form_type" value="working_hours">
+        {% for weekday in working_hours %}
+            <div class="hours-row">
+                <label class="checkbox inline-checkbox">
+                    <input type="checkbox" name="active_{{ weekday.weekday }}" {% if weekday.is_active %}checked{% endif %}>
+                    <span>{{ weekday_labels[weekday.weekday] }}</span>
+                </label>
+                <input type="time" name="start_{{ weekday.weekday }}" value="{{ weekday.start_time or '' }}">
+                <input type="time" name="end_{{ weekday.weekday }}" value="{{ weekday.end_time or '' }}">
+            </div>
+        {% endfor %}
+        <div class="actions-row">
+            <button class="button" type="submit">Save weekly hours</button>
+        </div>
+    </form>
+</section>
+
+<section class="grid two-col availability-layout">
+    <section class="card form-shell">
+        <div class="section-heading standalone">
+            <div>
+                <h3>Add time off</h3>
+            </div>
+        </div>
+        <form method="post" class="form-grid">
+            <input type="hidden" name="form_type" value="time_off">
+            <label class="full">
+                Title
+                <input type="text" name="title" placeholder="Vacation, lunch break, personal day" required>
+            </label>
+            <label>
+                Start
+                <input type="datetime-local" name="start_datetime" required>
+            </label>
+            <label>
+                End
+                <input type="datetime-local" name="end_datetime" required>
+            </label>
+            <label class="checkbox inline-checkbox full">
+                <input type="checkbox" name="is_all_day" id="is_all_day">
+                <span>All day</span>
+            </label>
+            <label class="full">
+                Notes
+                <textarea name="notes" rows="4" placeholder="Optional note for why this time is blocked."></textarea>
+            </label>
+            <label class="checkbox inline-checkbox full">
+                <input type="checkbox" name="is_recurring">
+                <span>Repeat this weekly time off</span>
+            </label>
+            <label class="full">
+                Repeat until
+                <input type="date" name="repeat_until">
+                <small>Leave blank if this weekly time off should keep repeating.</small>
+            </label>
+            <div class="full actions-row">
+                <button class="button" type="submit">Save time off</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="card">
+        <div class="section-heading">
+            <h3>Upcoming blocked times</h3>
+        </div>
+        {% if upcoming_unavailability %}
+            <div class="list">
+                {% for item in upcoming_unavailability %}
+                    <article class="list-item">
+                        <div>
+                            <strong>{{ item.title }}</strong>
+                            <p>
+                                {% if item.is_recurring %}
+                                    Weekly on {{ weekday_labels[item.weekday] }} | {{ item.start_datetime.strftime("%I:%M %p") }} to {{ item.end_datetime.strftime("%I:%M %p") }}
+                                {% else %}
+                                    {{ item.notes or "Unavailable" }}
+                                {% endif %}
+                            </p>
+                            <small>
+                                {% if item.is_recurring %}
+                                    Starts {{ item.start_datetime.strftime("%b %d, %Y") }}{% if item.repeat_until %} and ends {{ item.repeat_until.strftime("%b %d, %Y") }}{% else %} and repeats until changed{% endif %}
+                                {% else %}
+                                    {{ item.start_datetime.strftime("%b %d, %Y %I:%M %p") }} to {{ item.end_datetime.strftime("%b %d, %Y %I:%M %p") }}
+                                {% endif %}
+                            </small>
+                        </div>
+                        <a class="button subtle" href="{{ url_for('main.edit_unavailability', unavailability_id=item.id) }}">Edit</a>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty">No time off has been added yet.</p>
+        {% endif %}
+    </section>
+</section>
+
+<section class="card">
+    <div class="section-heading">
+        <h3>Current reschedule conflicts</h3>
+        <a href="{{ url_for('main.dashboard') }}">View dashboard</a>
+    </div>
+    {% if conflicting_appointments %}
+        <div class="list">
+            {% for appointment in conflicting_appointments %}
+                <article class="list-item">
+                    <div>
+                        <strong>{{ appointment.client.full_name }}</strong>
+                        <p>{{ appointment.title }}</p>
+                        <small>{{ appointment.start_datetime.strftime("%b %d, %Y %I:%M %p") }} to {{ appointment.end_datetime.strftime("%I:%M %p") }}</small>
+                    </div>
+                    <a class="button subtle" href="{{ url_for('main.edit_appointment', appointment_id=appointment.id) }}">Reschedule</a>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty">No currently scheduled appointments conflict with time off.</p>
+    {% endif %}
+</section>
+
+<script>
+    (() => {
+        const allDayToggle = document.getElementById("is_all_day");
+        const endInput = document.querySelector('input[name="end_datetime"]');
+        if (!allDayToggle || !endInput) {
+            return;
+        }
+
+        const sync = () => {
+            endInput.disabled = allDayToggle.checked;
+            if (allDayToggle.checked) {
+                endInput.dataset.previousValue = endInput.value;
+                endInput.value = endInput.value || "";
+            } else if (endInput.dataset.previousValue && !endInput.value) {
+                endInput.value = endInput.dataset.previousValue;
+            }
+        };
+
+        allDayToggle.addEventListener("change", sync);
+        sync();
+    })();
+</script>
+{% endblock %}

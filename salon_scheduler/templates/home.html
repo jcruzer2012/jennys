@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero client-hero">
+    <div>
+        <p class="eyebrow">Client Portal</p>
+        <h2>Welcome to Jenny's Barbershop</h2>
+        <p>Sign in to view your portal, check your appointment details, and request a schedule change.</p>
+        <div class="hero-feature-list">
+            <div class="hero-feature">
+                <strong>See your appointment details</strong>
+                <span>Review the visit you want to update before sending a request.</span>
+            </div>
+            <div class="hero-feature">
+                <strong>Request a better time</strong>
+                <span>Choose from the available calendar dates shown in the app.</span>
+            </div>
+        </div>
+    </div>
+    <div class="card hero-card">
+        <p class="hero-card-title">Client sign in</p>
+        <form method="post" action="{{ url_for('main.client_login') }}" class="form-grid request-form-grid">
+            <label>
+                Last name
+                <input type="text" name="last_name" required>
+            </label>
+            <label>
+                Phone number
+                <input type="text" name="phone" required>
+            </label>
+            <div class="actions-row">
+                <button class="button" type="submit">View portal</button>
+            </div>
+        </form>
+        <p class="stylist-link">New here? <a href="{{ url_for('main.client_register') }}">Create a client account</a></p>
+        <p class="stylist-link">Stylist access: <a href="{{ url_for('main.stylist_login') }}">sign in here</a></p>
+    </div>
+</section>
+{% endblock %}

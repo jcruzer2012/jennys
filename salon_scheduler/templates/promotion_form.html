@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="form-shell card">
+    <div class="section-heading standalone">
+        <div>
+            <p class="eyebrow">Promotions</p>
+            <h2>{{ "Edit promotion" if promotion else "Add a promotion" }}</h2>
+        </div>
+    </div>
+
+    <form method="post" class="form-grid">
+        <label class="full">
+            Promotion title
+            <input type="text" name="title" value="{{ promotion.title if promotion else '' }}" required>
+        </label>
+        <label class="full">
+            Client-facing description
+            <textarea name="description" rows="4">{{ promotion.description if promotion else '' }}</textarea>
+        </label>
+        <label>
+            Service
+            <select name="service_id" required>
+                <option value="">Select a service</option>
+                {% for service in services %}
+                    <option value="{{ service.id }}" {% if promotion and promotion.service_id == service.id %}selected{% endif %}>
+                        {{ service.display_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Discount percent
+            <input type="number" min="0" max="100" step="0.01" name="discount_percent" value="{{ '%.2f'|format(promotion.discount_percent) if promotion else '0.00' }}" required>
+            <small>Use `100` for a free service promotion.</small>
+        </label>
+        <section class="full scope-panel">
+            <div class="section-heading standalone service-picker-heading">
+                <div>
+                    <p class="eyebrow">Timing</p>
+                    <p>Choose whether this discount is always available, birthday-based, or tied to a custom date.</p>
+                </div>
+            </div>
+            <label class="scope-option">
+                <input type="radio" name="date_rule" value="always" {% if not promotion or promotion.date_rule == "always" %}checked{% endif %}>
+                <span>Always available</span>
+            </label>
+            <label class="scope-option">
+                <input type="radio" name="date_rule" value="birthday" {% if promotion and promotion.date_rule == "birthday" %}checked{% endif %}>
+                <span>Client birthday</span>
+            </label>
+            <label class="scope-option">
+                <input type="radio" name="date_rule" value="custom" {% if promotion and promotion.date_rule == "custom" %}checked{% endif %}>
+                <span>Custom date</span>
+            </label>
+        </section>
+        <label>
+            Custom date
+            <input type="date" name="custom_date" value="{{ promotion.custom_date.isoformat() if promotion and promotion.custom_date else '' }}">
+        </label>
+        <label>
+            Days before
+            <input type="number" min="0" step="1" name="days_before" value="{{ promotion.days_before if promotion else 0 }}" required>
+        </label>
+        <label>
+            Days after
+            <input type="number" min="0" step="1" name="days_after" value="{{ promotion.days_after if promotion else 0 }}" required>
+        </label>
+        <section class="full scope-panel">
+            <div class="section-heading standalone service-picker-heading">
+                <div>
+                    <p class="eyebrow">Audience</p>
+                    <p>Choose whether this promotion applies to everyone or only specific clients.</p>
+                </div>
+            </div>
+            <label class="scope-option">
+                <input type="radio" name="audience" value="all" {% if promotion and promotion.applies_to_all_clients %}checked{% elif not promotion %}checked{% endif %}>
+                <span>All clients</span>
+            </label>
+            <label class="scope-option">
+                <input type="radio" name="audience" value="selected" {% if promotion and not promotion.applies_to_all_clients %}checked{% endif %}>
+                <span>Only selected clients</span>
+            </label>
+        </section>
+        <section class="full scope-panel">
+            <div class="section-heading standalone service-picker-heading">
+                <div>
+                    <p class="eyebrow">Clients</p>
+                    <p>Select one or more clients when this promotion should not go to everyone.</p>
+                </div>
+            </div>
+            <div class="service-picker-grid">
+                {% for client in clients %}
+                    <label class="scope-option service-option">
+                        <input
+                            type="checkbox"
+                            name="client_ids"
+                            value="{{ client.id }}"
+                            {% if promotion and client in promotion.eligible_clients %}checked{% endif %}
+                        >
+                        <span>
+                            <strong>{{ client.full_name }}</strong>
+                            <small>{{ client.phone or "No phone saved" }}</small>
+                        </span>
+                    </label>
+                {% endfor %}
+            </div>
+        </section>
+        <label class="inline-checkbox checkbox full">
+            <input type="checkbox" name="active" {% if not promotion or promotion.active %}checked{% endif %}>
+            Active promotion
+        </label>
+        <div class="full actions-row">
+            <button class="button" type="submit">Save promotion</button>
+            <a class="button subtle" href="{{ url_for('main.promotions') }}">Back to promotions</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

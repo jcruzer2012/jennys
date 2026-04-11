@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="section-heading standalone">
+    <div>
+        <p class="eyebrow">Reports</p>
+        <h2>Income reporting</h2>
+        <p>Review this year's collected income, this year's scheduled income, and explore filtered revenue by client, service, and date range.</p>
+    </div>
+</section>
+
+<section class="stats report-stats">
+    <article class="card stat">
+        <span>${{ '%.2f'|format(current_year_collected_totals.income) }}</span>
+        <p>{{ current_year }} collected income</p>
+        <small>{{ current_year_collected_totals.appointment_count }} completed appointments</small>
+    </article>
+    <article class="card stat">
+        <span>${{ '%.2f'|format(current_year_scheduled_totals.income) }}</span>
+        <p>{{ current_year }} scheduled income</p>
+        <small>{{ current_year_scheduled_totals.appointment_count }} upcoming appointments</small>
+    </article>
+    <article class="card stat">
+        <span>${{ '%.2f'|format(filtered_totals.income) }}</span>
+        <p>Filtered income</p>
+        <small>${{ '%.2f'|format(filtered_totals.profit) }} profit</small>
+    </article>
+</section>
+
+<section class="card dashboard-bottom">
+    <form method="get" class="form-grid report-explorer-form">
+        <label>
+            Year
+            <select name="year">
+                <option value="all" {% if selected_year_value == 'all' %}selected{% endif %}>All time</option>
+                {% for year in years %}
+                    <option value="{{ year }}" {% if selected_year_value == year|string %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Client
+            <select name="client_id">
+                <option value="">All clients</option>
+                {% for client in client_options %}
+                    <option value="{{ client.id }}" {% if selected_client_id == client.id|string %}selected{% endif %}>{{ client.full_name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Service
+            <select name="service_id">
+                <option value="">All services</option>
+                {% for service in service_options %}
+                    <option value="{{ service.id }}" {% if selected_service_id == service.id|string %}selected{% endif %}>{{ service.display_name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Timing
+            <select name="timing">
+                <option value="all" {% if selected_timing == 'all' %}selected{% endif %}>Past and future</option>
+                <option value="past" {% if selected_timing == 'past' %}selected{% endif %}>Past only</option>
+                <option value="future" {% if selected_timing == 'future' %}selected{% endif %}>Future only</option>
+            </select>
+        </label>
+        <label>
+            Start date
+            <input type="date" name="start_date" value="{{ start_date }}">
+        </label>
+        <label>
+            End date
+            <input type="date" name="end_date" value="{{ end_date }}">
+        </label>
+        <div class="full actions-row">
+            <button class="button" type="submit">Apply filters</button>
+            <a class="button subtle" href="{{ url_for('main.reports') }}">Reset</a>
+            <a class="button subtle" href="{{ url_for('main.reports', year=selected_year_value, client_id=selected_client_id, service_id=selected_service_id, timing=selected_timing, start_date=start_date, end_date=end_date, export='csv') }}">Export CSV</a>
+        </div>
+    </form>
+</section>
+
+<section class="grid two-col dashboard-bottom">
+    <div class="card">
+        <div class="section-heading">
+            <h3>{{ selected_year_label }} filtered summary</h3>
+            <span class="eyebrow">{{ filtered_totals.appointment_count }} appointments</span>
+        </div>
+        <div class="report-summary-grid">
+            <div class="note-card">
+                <strong>Income</strong>
+                <p>${{ '%.2f'|format(filtered_totals.income) }}</p>
+            </div>
+            <div class="note-card">
+                <strong>Cost</strong>
+                <p>${{ '%.2f'|format(filtered_totals.cost) }}</p>
+            </div>
+            <div class="note-card">
+                <strong>Profit</strong>
+                <p>${{ '%.2f'|format(filtered_totals.profit) }}</p>
+            </div>
+        </div>
+
+        {% if monthly_income %}
+            <div class="section-heading subheading">
+                <h3>Monthly income</h3>
+            </div>
+            <div class="list">
+                {% for month_name, month_total in monthly_income %}
+                    <article class="list-item">
+                        <strong>{{ month_name }}</strong>
+                        <span>${{ '%.2f'|format(month_total) }}</span>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty">No income rows match these filters yet.</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="section-heading">
+            <h3>Income by client</h3>
+            <span class="eyebrow">{{ selected_year_label }}</span>
+        </div>
+        {% if filtered_totals.client_rows %}
+            <div class="list">
+                {% for row in filtered_totals.client_rows %}
+                    <article class="list-item report-list-item">
+                        <div>
+                            <strong>{{ row.client.full_name }}</strong>
+                            <small>{{ row.appointment_count }} appointments | {{ row.service_count }} services</small>
+                        </div>
+                        <div class="report-value-stack">
+                            <strong>${{ '%.2f'|format(row.income) }}</strong>
+                            <small>Cost ${{ '%.2f'|format(row.cost) }}</small>
+                            <small>Profit ${{ '%.2f'|format(row.profit) }}</small>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty">No client revenue found for these filters.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

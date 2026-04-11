@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card form-shell danger-shell">
+    <div class="section-heading standalone">
+        <div>
+            <p class="eyebrow">Delete Client</p>
+            <h2>Delete {{ client.full_name }}?</h2>
+            <p>This will permanently remove the client profile, appointments, recurring appointments, and change requests tied to this client.</p>
+        </div>
+    </div>
+
+    <section class="note-card warning-card">
+        <strong>Warning</strong>
+        <p>To confirm deletion, type <strong>{{ expected_name }}</strong> exactly as shown.</p>
+    </section>
+
+    <form method="post" class="form-grid request-form-grid">
+        <label>
+            Type client name to confirm
+            <input type="text" name="confirmation_name" placeholder="{{ expected_name }}" required>
+        </label>
+        <div class="actions-row">
+            <button class="button danger" type="submit">Delete client permanently</button>
+            <a class="button subtle" href="{{ url_for('main.client_profile', client_id=client.id) }}">Cancel</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

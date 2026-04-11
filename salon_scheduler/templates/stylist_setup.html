@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card form-shell">
+    <div class="section-heading standalone">
+        <div>
+            <p class="eyebrow">Stylist Setup</p>
+            <h2>Create the first stylist account</h2>
+        </div>
+    </div>
+    <form method="post" class="form-grid request-form-grid">
+        <label>
+            Username
+            <input type="text" name="username" required>
+        </label>
+        <label>
+            Password
+            <input type="password" name="password" required>
+        </label>
+        <label>
+            Confirm password
+            <input type="password" name="confirm_password" required>
+        </label>
+        <label>
+            Reset code
+            <input type="password" name="reset_code" required>
+        </label>
+        <label>
+            Confirm reset code
+            <input type="password" name="confirm_reset_code" required>
+        </label>
+        <div class="actions-row">
+            <button class="button" type="submit">Create account</button>
+        </div>
+    </form>
+    <p class="stylist-link">This reset code is used for password recovery inside the app, so keep it somewhere safe.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="section-heading standalone">
+    <div>
+        <p class="eyebrow">Promotions</p>
+        <h2>Discount library</h2>
+        <p>Create service-based promotions for one client or everyone.</p>
+    </div>
+    <a class="button" href="{{ url_for('main.create_promotion') }}">Add promotion</a>
+</section>
+
+<section class="cards">
+    {% for promotion in promotions %}
+        <article class="card client-card service-card">
+            <div>
+                <div class="client-header">
+                    <h3>{{ promotion.title }}</h3>
+                    {% if not promotion.active %}<span class="pill subtle-pill">Inactive</span>{% endif %}
+                </div>
+                <p>{{ promotion.description or "No client-facing description yet." }}</p>
+                <div class="service-money-row">
+                    <span class="pill">{{ '%.0f'|format(promotion.discount_percent) }}% off</span>
+                    <span class="pill subtle-pill">{{ promotion.service.display_name }}</span>
+                    <span class="pill subtle-pill">
+                        {% if promotion.date_rule == "birthday" %}
+                            Birthday window
+                        {% elif promotion.date_rule == "custom" %}
+                            Custom date
+                        {% else %}
+                            Anytime
+                        {% endif %}
+                    </span>
+                    <span class="pill subtle-pill">
+                        {% if promotion.applies_to_all_clients %}
+                            All clients
+                        {% else %}
+                            {{ promotion.eligible_clients|length }} selected client{{ "" if promotion.eligible_clients|length == 1 else "s" }}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="actions-row">
+                <a class="button subtle" href="{{ url_for('main.edit_promotion', promotion_id=promotion.id) }}">Edit promotion</a>
+            </div>
+        </article>
+    {% else %}
+        <p class="empty">No promotions added yet.</p>
+    {% endfor %}
+</section>
+{% endblock %}
